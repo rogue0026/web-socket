@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -116,31 +115,30 @@ func main() {
 	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
-	wg := &sync.WaitGroup{}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	results, errs := mc.Subscribe(ctx, req)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		for res := range results {
+
+MAIN_LOOP:
+	for {
+		select {
+		case err := <-errs:
+			fmt.Printf("%s", err.Error())
+			fmt.Printf("\r")
+		case js := <-results:
 			pd := PushedData{}
-			err := json.Unmarshal(res, &pd)
+			err := json.Unmarshal(js, &pd)
 			if err != nil {
-				fmt.Println(err.Error())
+				fmt.Printf("%s", err.Error())
+				fmt.Printf("\r")
 			} else {
 				fmt.Printf("%s", pd)
 				fmt.Printf("\r")
 			}
+		case <-stop:
+			break MAIN_LOOP
 		}
-	}()
-	go func() {
-		defer wg.Done()
-		for err := range errs {
-			fmt.Println(err.Error())
-		}
-	}()
-	<-stop
+	}
+
 	cancel()
-	wg.Wait()
 }
