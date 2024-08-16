@@ -55,6 +55,22 @@ type Channel struct {
 	conn *websocket.Conn
 }
 
+func NewChannel(rBufSz int, wBufSz int, timeout time.Duration, wsURL string) (*Channel, error) {
+	d := websocket.Dialer{
+		ReadBufferSize:   rBufSz,
+		WriteBufferSize:  wBufSz,
+		HandshakeTimeout: timeout,
+	}
+	conn, _, err := d.Dial(wsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	ch := Channel{
+		conn: conn,
+	}
+	return &ch, nil
+}
+
 func (ch *Channel) Close() error {
 	return ch.conn.Close()
 }
@@ -131,20 +147,4 @@ func (ch *Channel) Subscribe(ctx context.Context, req Request) (chan []byte, cha
 	}()
 
 	return out, nil
-}
-
-func NewChannel(rBufSz int, wBufSz int, timeout time.Duration, wsURL string) (*Channel, error) {
-	d := websocket.Dialer{
-		ReadBufferSize:   rBufSz,
-		WriteBufferSize:  wBufSz,
-		HandshakeTimeout: timeout,
-	}
-	conn, _, err := d.Dial(wsURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	ch := Channel{
-		conn: conn,
-	}
-	return &ch, nil
 }
